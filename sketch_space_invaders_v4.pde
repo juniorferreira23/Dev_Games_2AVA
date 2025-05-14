@@ -8,6 +8,7 @@ PImage playerImg;
 PImage enemyImg;
 PImage bossImg;
 PImage backgroundImg;
+PImage introBackgroundImg;
 
 // Variáveis para efeitos sonoros
 SoundFile musicSound;
@@ -63,9 +64,16 @@ int bossShotCount = 3; // Número de tiros simultâneos
 
 // Variáveis do jogo
 boolean gameOver = false;
+boolean gameStarted = false;
 int score = 0;
 int lives = 3;
 int wave = 1;
+
+// Variáveis para a tela de intro
+int blinkInterval = 500; // Intervalo de piscar em ms
+int lastBlinkTime = 0;
+boolean showStartText = true;
+
 
 class BossShot {
   PVector position;
@@ -89,6 +97,7 @@ void setup() {
   enemyImg = loadImage("enemy.png");
   bossImg = loadImage("boss.png");
   backgroundImg = loadImage("background.jpg");
+  introBackgroundImg = loadImage("intro_bg.png"); 
   
   // Carrega os efeitos sonoros
   musicSound = new SoundFile(this, "fastinvader1.wav");
@@ -162,7 +171,34 @@ void spawnBoss() {
   boss.y = 100;
 }
 
-void draw() {
+void drawIntroScreen() {
+  // Desenha o background da intro
+  image(introBackgroundImg, 0, 0, width, height);
+  
+  // Atualiza o piscar do texto
+  int currentTime = millis();
+  if (currentTime - lastBlinkTime > blinkInterval) {
+    showStartText = !showStartText;
+    lastBlinkTime = currentTime;
+  }
+  
+  // Desenha o texto piscando
+  if (showStartText) {
+    fill(255);
+    textSize(32);
+    textAlign(CENTER, CENTER);
+    text("START GAME", width/2, height/2 - 30);
+    textSize(24);
+    text("Press SPACE", width/2, height/2 + 20);
+  }
+}
+
+void draw() {  
+  if (!gameStarted) {
+    drawIntroScreen();
+    return;
+  }
+  
   background(0);
   // Limpa a tela completamente desenhando o fundo primeiro
   image(backgroundImg, 300, 400, width, height);
@@ -423,6 +459,13 @@ void movePlayer() {
 }
 
 void keyPressed() {
+  if (!gameStarted) {
+    if (key == ' ') {
+      gameStarted = true;
+    }
+    return;
+  }
+  
   if (key == ' ' && !gameOver) {
     shots.add(new PVector(playerX, playerY - playerSize/2));
     shootSound.play();
