@@ -9,6 +9,7 @@ PImage enemyImg;
 PImage bossImg;
 PImage backgroundImg;
 PImage introBackgroundImg;
+PImage companyLogoImg;
 
 // Variáveis para efeitos sonoros
 SoundFile musicSound;
@@ -66,6 +67,9 @@ int bossShotCount = 3; // Número de tiros simultâneos
 boolean gameOver = false;
 boolean gameStarted = false;
 int score = 0;
+
+// score list
+ArrayList<Integer> scoreHistory = new ArrayList<Integer>();
 int lives = 3;
 int wave = 1;
 
@@ -73,6 +77,30 @@ int wave = 1;
 int blinkInterval = 500; // Intervalo de piscar em ms
 int lastBlinkTime = 0;
 boolean showStartText = true;
+
+boolean showLogo = true;
+int logoDisplayTime = 3000; // 3 segundos
+int logoStartTime;
+
+boolean showCredits = false;
+
+// Variáveis para tela de história
+boolean showStory = false;
+String storyText = "ANO 2142 - A TERRA ESTÁ SOB ATAQUE!\n\n" +
+                   "Uma frota alienígena implacável chegou ao nosso sistema solar.\n" +
+                   "Como último piloto da resistência humana, sua missão é\n" +
+                   "destruir todas as naves inimigas antes que elas exterminem\n" +
+                   "a vida em nosso planeta.\n\n" +
+                   "Use as setas para mover e ESPAÇO para atirar.\n" +
+                   "Sobreviva o máximo que puder e proteja a Terra!";
+
+// Variáveis para tela de highscores
+boolean showHighScores = false;
+ArrayList<String> playerInitials = new ArrayList<String>();
+ArrayList<Integer> highScores = new ArrayList<Integer>();
+boolean enteringInitials = false;
+String currentInitials = "";
+int charIndex = 0;
 
 
 class BossShot {
@@ -97,7 +125,10 @@ void setup() {
   enemyImg = loadImage("enemy.png");
   bossImg = loadImage("boss.png");
   backgroundImg = loadImage("background.jpg");
-  introBackgroundImg = loadImage("intro_bg.png"); 
+  introBackgroundImg = loadImage("intro_bg.png");
+  introBackgroundImg.resize(width, height);
+  companyLogoImg = loadImage("logo.png");
+  companyLogoImg.resize(300, 300);
   
   // Carrega os efeitos sonoros
   musicSound = new SoundFile(this, "fastinvader1.wav");
@@ -111,6 +142,9 @@ void setup() {
   explosionSound.amp(0.7);
   hitSound.amp(0.6);
   gameOverSound.amp(0.8);
+  
+  // Define o tempo inicial da logo
+  logoStartTime = millis();
   
   // Redimensiona as imagens se necessário
   playerImg.resize(playerSize, playerSize/2);
@@ -173,6 +207,7 @@ void spawnBoss() {
 
 void drawIntroScreen() {
   // Desenha o background da intro
+  imageMode(CORNER);
   image(introBackgroundImg, 0, 0, width, height);
   
   // Atualiza o piscar do texto
@@ -190,10 +225,44 @@ void drawIntroScreen() {
     text("START GAME", width/2, height/2 - 30);
     textSize(24);
     text("Press SPACE", width/2, height/2 + 20);
+    text("Press C for Credits", width/2, height/2 + 60);
+    text("Press H for High Scores", width/2, height/2 + 100);
   }
 }
 
-void draw() {  
+void draw() {
+  if (showLogo) {
+    drawLogoScreen();
+    
+    // Verifica se já passou o tempo de exibição da logo
+    if (millis() - logoStartTime > logoDisplayTime) {
+      showLogo = false;
+    }
+    return;
+  }
+  
+  // Tela de créditos
+  if (showCredits) {
+    drawCreditsScreen();
+    return;
+  }
+  
+   if (showHighScores) {
+    drawHighScoresScreen();
+    return;
+  }
+  
+  if (showStory) {
+    drawStoryScreen();
+    return;
+  }
+  
+  if (enteringInitials) {
+    drawInitialsEntry();
+    return;
+  }
+  
+  // Tela de introdução do jogo
   if (!gameStarted) {
     drawIntroScreen();
     return;
@@ -208,7 +277,6 @@ void draw() {
     musicSound.play();
     lastPlayTime = currentTime;
   }
-  
   
   // Desenha todos os elementos do jogo
   if (!gameOver) {
@@ -256,11 +324,12 @@ void draw() {
     fill(255);
     textSize(32);
     textAlign(CENTER, CENTER);
-    text("GAME OVER", width/2, height/2);
+    text("GAME OVER", width/2, height/4);
     textSize(24);
-    text("Score: " + score, width/2, height/2 + 40);
-    text("Wave: " + wave, width/2, height/2 + 70);
-    text("Press R to restart", width/2, height/2 + 110);
+    text("Score: " + score, width/2, height/4 + 40);
+    text("Wave: " + wave, width/2, height/4 + 70);
+    text("Press R to restart", width/2, height/4 + 110);
+    text("Press ESC for intro", width/2, height/4 + 140);
   }
   
   // Mostra informações do jogo (sobrepostas)
@@ -270,6 +339,17 @@ void draw() {
   text("Score: " + score, 20, 20);
   text("Lives: " + lives, 20, 40);
   text("Wave: " + wave, 20, 60);
+}
+
+void drawLogoScreen() {
+  background(0);
+
+  image(companyLogoImg, 150 , 200);
+  
+  fill(255);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  text("Loading...", width/2, height - 50);
 }
 
 void drawBoss() {
@@ -459,9 +539,67 @@ void movePlayer() {
 }
 
 void keyPressed() {
+  if (enteringInitials) {
+    if (keyCode == UP) {
+      // Incrementa a letra atual
+      if (currentInitials.length() > charIndex) {
+        char c = currentInitials.charAt(charIndex);
+        if (c < 'Z') c++;
+        else c = 'A';
+        currentInitials = currentInitials.substring(0, charIndex) + c + currentInitials.substring(charIndex+1);
+      }
+    } else if (keyCode == DOWN) {
+      // Decrementa a letra atual
+      if (currentInitials.length() > charIndex) {
+        char c = currentInitials.charAt(charIndex);
+        if (c > 'A') c--;
+        else c = 'Z';
+        currentInitials = currentInitials.substring(0, charIndex) + c + currentInitials.substring(charIndex+1);
+      }
+    } else if (keyCode == RIGHT) {
+      // Move para a próxima letra
+      charIndex = min(charIndex + 1, 2);
+    } else if (keyCode == LEFT) {
+      // Move para a letra anterior
+      charIndex = max(charIndex - 1, 0);
+    } else if (keyCode == ENTER) {
+      // Confirma as iniciais
+      playerInitials.add(currentInitials);
+      highScores.add(score);
+      
+      // Ordena as listas em ordem decrescente de score
+      sortHighScores();
+      
+      enteringInitials = false;
+      gameOver = true;
+    }
+    return;
+  }
+  
+   if (showCredits || showHighScores) {
+    if (key == ESC) {
+      showCredits = false;
+      showHighScores = false;
+      key = 0; // Previne comportamento padrão do ESC
+    }
+    return;
+  }
+  
+  if (showStory) {
+    if (key == ' ') {
+      showStory = false;
+      gameStarted = true;
+    }
+    return;
+  }
+  
   if (!gameStarted) {
     if (key == ' ') {
-      gameStarted = true;
+      showStory = true;
+    } else if (key == 'c' || key == 'C') {
+      showCredits = true;
+    } else if (key == 'h' || key == 'H') {
+      showHighScores = true;
     }
     return;
   }
@@ -471,8 +609,15 @@ void keyPressed() {
     shootSound.play();
   }
   
-  if (key == 'r' || key == 'R') {
-    if (gameOver) {
+  if (gameOver) {
+    if (key == 'r' || key == 'R') {
+      restartGame();
+    } else if (key == ESC) {
+      // Volta para a tela de introdução
+      gameOver = false;
+      gameStarted = false;
+      showStory = false;
+      key = 0; // Previne comportamento padrão do ESC
       gameOver = false;
       lives = 3;
       score = 0;
@@ -484,6 +629,7 @@ void keyPressed() {
       resetBarriers();
       bossActive = false;
       playerX = width/2;
+      playerY = height - 50;
     }
   }
 }
@@ -604,8 +750,10 @@ void checkPlayerHit() {
       hitSound.play();
       
       if (lives <= 0) {
-        gameOver = true;
         gameOverSound.play();
+        enteringInitials = true;
+        currentInitials = "AAA"; // Iniciais padrão
+        charIndex = 0;
       }
     }
   }
@@ -619,7 +767,9 @@ void checkPlayerHit() {
       lives--;
       
       if (lives <= 0) {
-        gameOver = true;
+        enteringInitials = true;
+        currentInitials = "AAA";
+        charIndex = 0;
       }
     }
   }
@@ -627,7 +777,9 @@ void checkPlayerHit() {
   // Verifica colisão com inimigos
   for (PVector enemy : enemies) {
     if (dist(enemy.x, enemy.y, playerX, playerY) < (enemySize + playerSize)/2) {
-      gameOver = true;
+      enteringInitials = true;
+      currentInitials = "AAA";
+      charIndex = 0;
     }
   }
   
@@ -635,7 +787,9 @@ void checkPlayerHit() {
   if (bossActive && 
       abs(playerX - boss.x) < (bossWidth/2 + playerSize/2) && 
       abs(playerY - boss.y) < (bossHeight/2 + playerSize/2)) {
-    gameOver = true;
+    enteringInitials = true;
+    currentInitials = "AAA";
+    charIndex = 0;
   }
 }
 
@@ -645,4 +799,143 @@ void checkGameOver() {
       gameOver = true;
     }
   }
+}
+
+void drawCreditsScreen() {
+  background(0);
+  
+  fill(255);
+  textSize(32);
+  textAlign(CENTER, CENTER);
+  text("CREDITS", width/2, 100);
+  
+  textSize(24);
+  text("Developers:", width/2, 160);
+  
+  // Lista de desenvolvedores - substitua pelos nomes reais
+  text("Elizeu Leoncio Ferreira Junior", width/2, 200);
+  text("Laryssa Rayanne Souza Martins", width/2, 230);
+  text("Rafael Ferreira dos Anjos", width/2, 260);
+  text("Matheus de Oliveira Lins Mendes Simes", width/2, 290);
+  
+  textSize(20);
+  text("Press ESC to return", width/2, height - 50);
+}
+
+void restartGame() {
+  gameOver = false;
+  lives = 3;
+  score = 0;
+  wave = 1;
+  shots.clear();
+  enemyShots.clear();
+  bossShots.clear();
+  resetEnemies();
+  resetBarriers();
+  bossActive = false;
+  playerX = width/2;
+  playerY = height - 50;
+  gameStarted = true; // Começa o jogo diretamente
+}
+
+void drawStoryScreen() {
+  // Fundo (pode ser preto ou usar a imagem de intro)
+  background(0);
+  
+  // Configurações do texto
+  textSize(20);
+  textAlign(CENTER, CENTER);
+  fill(255, 255, 0); // Texto amarelo
+  
+  // Divide o texto em linhas e desenha centralizado
+  String[] lines = storyText.split("\n");
+  float startY = height/4;
+  
+  for (int i = 0; i < lines.length; i++) {
+    text(lines[i], width/2, startY + i * 30);
+  }
+  
+  // Instrução para continuar
+  fill(255);
+  textSize(18);
+  text("Pressione ESPAÇO para começar", width/2, height - 50);
+}
+
+void drawHighScoresScreen() {
+  background(0);
+  
+  fill(255, 255, 0);
+  textSize(32);
+  textAlign(CENTER, CENTER);
+  text("HIGH SCORES", width/2, 80);
+  
+  textSize(24);
+  fill(255);
+  
+  // Desenha os 10 melhores scores
+  for (int i = 0; i < min(highScores.size(), 10); i++) {
+    String scoreText = nf(i+1, 2) + ". " + playerInitials.get(i) + " - " + highScores.get(i);
+    text(scoreText, width/2, 150 + i * 30);
+  }
+  
+  fill(200);
+  textSize(18);
+  text("Press ESC to return", width/2, height - 50);
+}
+
+void drawInitialsEntry() {
+  background(0);
+  
+  fill(255);
+  textSize(32);
+  textAlign(CENTER, CENTER);
+  text("GAME OVER", width/2, height/4);
+  textSize(24);
+  text("Score: " + score, width/2, height/4 + 40);
+  text("Wave: " + wave, width/2, height/4 + 70);
+  
+  textSize(28);
+  text("Enter your initials:", width/2, height/2);
+  
+  // Mostra as iniciais sendo digitadas
+  textSize(36);
+  fill(255, 255, 0);
+  text(currentInitials, width/2, height/2 + 50);
+  
+  // Mostra instruções
+  fill(200);
+  textSize(16);
+  text("Use UP/DOWN to change letter, ENTER to confirm", width/2, height - 100);
+}
+
+void sortHighScores() {
+  // Cria uma lista de índices ordenados por score
+  ArrayList<Integer> indices = new ArrayList<Integer>();
+  for (int i = 0; i < highScores.size(); i++) {
+    indices.add(i);
+  }
+  
+  // Ordena os índices com base nos scores (ordem decrescente)
+  for (int i = 0; i < indices.size() - 1; i++) {
+    for (int j = i + 1; j < indices.size(); j++) {
+      if (highScores.get(indices.get(i)) < highScores.get(indices.get(j))) {
+        int temp = indices.get(i);
+        indices.set(i, indices.get(j));
+        indices.set(j, temp);
+      }
+    }
+  }
+  
+  // Cria listas temporárias ordenadas
+  ArrayList<String> sortedInitials = new ArrayList<String>();
+  ArrayList<Integer> sortedScores = new ArrayList<Integer>();
+  
+  for (int i = 0; i < indices.size(); i++) {
+    sortedInitials.add(playerInitials.get(indices.get(i)));
+    sortedScores.add(highScores.get(indices.get(i)));
+  }
+  
+  // Substitui as listas originais
+  playerInitials = sortedInitials;
+  highScores = sortedScores;
 }
